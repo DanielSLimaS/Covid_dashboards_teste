@@ -1,0 +1,42 @@
+import pandas as pd
+import plotly.express as px
+import dash
+from dash.dependencies import Input, Output
+from dash import dcc
+from dash import html
+
+# Carrega os dados
+df = pd.read_csv('https://raw.githubusercontent.com/datasets/covid-19/master/data/countries-aggregated.csv')
+
+# Remove as colunas desnecessárias
+df.drop(['Confirmed', 'Recovered'], axis=1, inplace=True)
+
+# Agrupa os dados por país e soma o número de mortes por mês
+df = df.groupby(['Country', 'Date']).sum().reset_index()
+
+# Aplica o formato de data a coluna 'Date'
+df['Date'] = pd.to_datetime(df['Date'])
+df['Month'] = df['Date'].dt.strftime('%b %Y')
+
+app = dash.Dash()
+
+app.layout = html.Div([
+    dcc.Dropdown(
+        id='country_selector',
+        options=[{'label': i, 'value': i} for i in df['Country'].unique()],
+        value='Brazil'
+    ),
+    dcc.Graph(id='graph')
+])
+
+@app.callback(
+    Output('graph', 'figure'),
+    [Input('country_selector', 'value')]
+)
+def update_graph(selected_country):
+    filtered_df = df[df['Country'] == selected_country]
+    fig = px.bar(filtered_df, x='Month', y='Deaths', title=f'Mortes por COVID-19 em {selected_country}')
+    return fig
+
+if __name__ == '__main__':
+    app.run_server(debug=True)
